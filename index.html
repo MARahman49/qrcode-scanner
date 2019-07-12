@@ -1,41 +1,158 @@
-<!DOCTYPE html>
 <html>
+
 <head>
-    <title>Qr Code Scanner</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
-</head>
-<body>
-    <h1>Qr Code Scanner</h1>
-    <video id="preview"></video>
-    <script type="text/javascript">
-        let scanner = new Instascan.Scanner({ video: document.getElementById('preview') });
-        scanner.addListener('scan', function (content) {
-            stopScanner()
-            alert(content);
-        });
-        function startScanner() {
-            Instascan.Camera.getCameras().then(function (cameras) {
-                console.log(cameras)
-                if (cameras.length > 0) {
-                    scanner.start(cameras[cameras.length - 1]);
-                    setTimeout(function(){
-                        stopScanner()
-                    } , 60000)
-                } else {
-                    console.error('No cameras found.');
-                }
-            }).catch(function (e) {
-                console.error(e);
-            });
+    <meta charset="utf-8">
+    <title>Qrcode Scanner</title>
+    <script src="./jsQR.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Ropa+Sans" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Ropa Sans', sans-serif;
+            color: #333;
+            max-width: 640px;
+            margin: 0 auto;
+            position: relative;
         }
-        function stopScanner() {
-            scanner.stop();
+
+        h1 {
+            margin: 10px 0;
+            font-size: 40px;
+        }
+
+        #loadingMessage {
+            text-align: center;
+            padding: 40px;
+            background-color: #eee;
+        }
+
+        #canvas {
+            width: 100%;
+        }
+
+        #output {
+            margin-top: 20px;
+            background: #eee;
+            padding: 10px;
+            padding-bottom: 0;
+        }
+
+        #output div {
+            padding-bottom: 10px;
+            word-wrap: break-word;
+        }
+
+        #noQRFound {
+            text-align: center;
+        }
+        .btns{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1vh 5vw 2vh 5vw;
+        }
+        .btn{
+            margin-top: 1vh;
+            padding: 1vh 2vw 1vh 2vw;
+            color: #eee;
+            font-weight: bold;
+        }
+        .open{
+            background-color: green;
+        }
+        .close{
+            background-color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Qrcode Scanner</h1>
+    <div id="loadingMessage">🎥 Please Open Camera to Scan Qrcode</div>
+    <canvas id="canvas" hidden></canvas>
+    <div id="output" hidden>
+        <div id="outputMessage">No QR code detected.</div>
+    </div>
+    <div class="btns">
+        
+    <button onclick="startScan()" class="btn open" id="open">Open Camera</button>
+    <button onclick="stopScan()"  class="btn close" id="close" hidden>Close Camers</button>
+    </div>
+    <script>
+        var video = document.createElement("video");
+        var canvasElement = document.getElementById("canvas");
+        var canvas = canvasElement.getContext("2d");
+        var loadingMessage = document.getElementById("loadingMessage");
+        var outputContainer = document.getElementById("output");
+        var outputMessage = document.getElementById("outputMessage");
+        var openBtn = document.getElementById("open");
+        var closeBtn = document.getElementById("close");
+
+        function drawLine(begin, end, color) {
+            canvas.beginPath();
+            canvas.moveTo(begin.x, begin.y);
+            canvas.lineTo(end.x, end.y);
+            canvas.lineWidth = 4;
+            canvas.strokeStyle = color;
+            canvas.stroke();
+        }
+
+        function startScan() {
+            // Use facingMode: environment to attemt to get the front camera on phones
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+                video.srcObject = stream;
+                video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+                video.play();
+                openBtn.hidden = true
+                closeBtn.hidden = false
+                requestAnimationFrame(tick);
+            });
+
+        }
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                loadingMessage.hidden = true;
+                canvasElement.hidden = false;
+                outputContainer.hidden = false;
+
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
+                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+                var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                var code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                if (code) {
+                    drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+                    drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+                    drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+                    drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+                    outputMessage.hidden = true;
+                    let QrcodeContent = code.data //qrcode content
+                    alert(QrcodeContent)
+                    console.log(QrcodeContent)
+                } else {
+                    outputMessage.hidden = false;
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        function stopScan(){
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+                video.srcObject = stream;
+                video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+                var track = stream.getTracks()[0];  // if only one media track
+                track.stop()
+                loadingMessage.hidden = false;
+                loadingMessage.innerText = "🎥 Please Open Camera to Scan Qrcode"
+                canvasElement.height = 0;
+                canvasElement.width = 0;
+                outputContainer.hidden = true;
+                openBtn.hidden = false
+                closeBtn.hidden = true
+            });
+
         }
     </script>
-    <br />
-    <button onclick="startScanner()">Start Scanner</button>
-    <button onclick="stopScanner()">Stop Scanner</button>
 </body>
 
 </html>
