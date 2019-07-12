@@ -44,22 +44,26 @@
         #noQRFound {
             text-align: center;
         }
-        .btns{
+
+        .btns {
             display: flex;
             flex-direction: column;
             justify-content: center;
             padding: 1vh 5vw 2vh 5vw;
         }
-        .btn{
+
+        .btn {
             margin-top: 1vh;
             padding: 1vh 2vw 1vh 2vw;
             color: #eee;
             font-weight: bold;
         }
-        .open{
+
+        .open {
             background-color: green;
         }
-        .close{
+
+        .close {
             background-color: red;
         }
     </style>
@@ -73,9 +77,9 @@
         <div id="outputMessage">No QR code detected.</div>
     </div>
     <div class="btns">
-        
-    <button onclick="startScan()" class="btn open" id="open">Open Camera</button>
-    <button onclick="stopScan()"  class="btn close" id="close" hidden>Close Camers</button>
+
+        <button onclick="startScan()" class="btn open" id="open">Open Camera</button>
+        <button onclick="stopScan()" class="btn close" id="close" hidden>Close Camers</button>
     </div>
     <script>
         var video = document.createElement("video");
@@ -104,6 +108,9 @@
                 video.play();
                 openBtn.hidden = true
                 closeBtn.hidden = false
+                setTimeout(function () {
+                    stopScan()
+                }, 60000)
                 requestAnimationFrame(tick);
             });
 
@@ -130,15 +137,20 @@
                     let QrcodeContent = code.data //qrcode content
                     alert(QrcodeContent)
                     console.log(QrcodeContent)
+                    stopScan()
                 } else {
                     outputMessage.hidden = false;
                 }
             }
             requestAnimationFrame(tick);
         }
-        function stopScan(){
+        function stopScan() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
                 video.srcObject = stream;
+                stream.getTracks().map(function (val) {
+                    console.log(val)
+                    val.stop();
+                });
                 video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
                 var track = stream.getTracks()[0];  // if only one media track
                 track.stop()
@@ -149,6 +161,7 @@
                 outputContainer.hidden = true;
                 openBtn.hidden = false
                 closeBtn.hidden = true
+                
             });
 
         }
